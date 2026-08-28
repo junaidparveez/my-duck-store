@@ -1,18 +1,34 @@
 spring:
   application:
     name: my-duck-store
+
+  # Defaults match docker-compose.yml, so a clean checkout runs with no configuration.
+  # Host port is 5433 because a locally installed PostgreSQL commonly holds 5432.
+  # Anything machine-specific goes in the environment, never in this file.
   datasource:
-    url: jdbc:postgresql://localhost:5432/duckstore
-    username: postgres
-    password: Probuddy
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/duckstore}
+    username: ${DB_USERNAME:duckstore}
+    password: ${DB_PASSWORD:duckstore}
+
   jpa:
     hibernate:
+      # Flyway owns the schema. Hibernate only checks that the entities match it and never
+      # alters it - "update" would silently skip the partial unique index the merge rule needs.
       ddl-auto: validate
     open-in-view: false
     properties:
       hibernate.jdbc.time_zone: UTC
+
   flyway:
     enabled: true
+
+  web:
+    error:
+      # Boot 4 moved these from server.error.*. Never leak stack traces to API clients,
+      # but do return the message and the failed field so a 400 is actually actionable.
+      include-stacktrace: never
+      include-message: always
+      include-binding-errors: always
 
 server:
   port: 8080

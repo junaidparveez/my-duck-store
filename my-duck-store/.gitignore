@@ -31,3 +31,18 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Node / frontend ###
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+### Local environment & secrets ###
+.env
+.env.*
+!.env.example
+
+### Logs ###
+*.log
+npm-debug.log*
