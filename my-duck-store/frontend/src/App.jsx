@@ -1,122 +1,141 @@
 import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { Alert, Button, Spinner } from 'react-bootstrap'
 import './App.css'
+import DeleteDialog from './components/DeleteDialog.jsx'
+import DuckForm from './components/DuckForm.jsx'
+import DuckTable from './components/DuckTable.jsx'
+import { useDucks } from './hooks/useDucks.js'
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const { ducks, loading, error, addDuck, updateDuck, deleteDuck } = useDucks()
 
+  // ── Modal visibility state ─────────────────────────────────────────────────
+  // formDuck === null  → add mode    (form closed when formOpen is false)
+  // formDuck !== null  → edit mode
+  const [formOpen,    setFormOpen]    = useState(false)
+  const [formDuck,    setFormDuck]    = useState(null)   // duck being edited
+  const [deletingDuck, setDeletingDuck] = useState(null) // duck queued for deletion
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  function openAdd() {
+    setFormDuck(null)
+    setFormOpen(true)
+  }
+
+  function openEdit(duck) {
+    setFormDuck(duck)
+    setFormOpen(true)
+  }
+
+  function closeForm() {
+    setFormOpen(false)
+    setFormDuck(null)
+  }
+
+  /** Called by DuckForm with the validated payload. */
+  async function handleFormSubmit(data) {
+    if (formDuck) {
+      await updateDuck(formDuck.id, data)
+    } else {
+      await addDuck(data)
+    }
+    closeForm()
+  }
+
+  /** Called by DeleteDialog after the user confirms. */
+  async function handleDeleteConfirm() {
+    await deleteDuck(deletingDuck.id)
+    setDeletingDuck(null)
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <header className="wh-header">
+        <div className="wh-brand">
+          <span className="wh-brand-icon" aria-hidden="true">🦆</span>
+          <div className="wh-brand-text">
+            <span className="wh-brand-title">Duck Warehouse</span>
+            <span className="wh-brand-subtitle">Stock Management</span>
+          </div>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+
+        <Button
+          variant="primary"
+          size="sm"
+          id="add-duck-btn"
+          onClick={openAdd}
         >
-          Count is {count}
-        </button>
-      </section>
+          + Add Duck
+        </Button>
+      </header>
 
-      <div className="ticks"></div>
+      {/* ── Main content ────────────────────────────────────────────────────── */}
+      <main className="wh-main">
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+        {/* Global fetch error */}
+        {error && (
+          <Alert variant="danger" className="mb-3" style={{ fontSize: '0.875rem' }}>
+            {error}
+          </Alert>
+        )}
+
+        {/* Section title bar */}
+        <div className="wh-section-bar">
+          <h1 className="wh-section-title">
+            All Ducks
+            {!loading && (
+              <span className="wh-duck-count" aria-label={`${ducks.length} ducks`}>
+                {ducks.length}
+              </span>
+            )}
+          </h1>
+          {loading && <Spinner size="sm" style={{ color: 'var(--duck-amber)' }} />}
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+        {/* Table card */}
+        <div className="wh-card">
+          {loading && ducks.length === 0
+            ? (
+              <div className="wh-empty">
+                <Spinner style={{ color: 'var(--duck-amber)', width: '2rem', height: '2rem' }} />
+                <p className="mt-3 mb-0" style={{ color: 'var(--text-muted)' }}>Loading…</p>
+              </div>
+            )
+            : (
+              <DuckTable
+                ducks={ducks}
+                onEdit={openEdit}
+                onDelete={setDeletingDuck}
+              />
+            )
+          }
+        </div>
+
+        <p className="mt-2 mb-0" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          Sorted by quantity · lowest stock first
+        </p>
+      </main>
+
+      {/* ── Footer ────────────────────────────────────────────────────────── */}
+      <footer className="wh-footer">
+        Duck Warehouse — My Duck Store
+      </footer>
+
+      {/* ── Modals ────────────────────────────────────────────────────────── */}
+      <DuckForm
+        show={formOpen}
+        onHide={closeForm}
+        onSubmit={handleFormSubmit}
+        duck={formDuck}
+      />
+
+      <DeleteDialog
+        duck={deletingDuck}
+        onConfirm={handleDeleteConfirm}
+        onHide={() => setDeletingDuck(null)}
+      />
     </>
   )
 }
-
-export default App
