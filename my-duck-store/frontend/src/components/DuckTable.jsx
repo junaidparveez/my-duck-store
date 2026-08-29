@@ -49,6 +49,7 @@ export default function DuckTable({ ducks, onEdit, onDelete }) {
     <Table className="wh-table" responsive>
       <thead>
         <tr>
+          <th style={{ width: 60 }}>Id</th>
           <th>Color</th>
           <th>Size</th>
           <th>Price (USD)</th>
@@ -59,6 +60,7 @@ export default function DuckTable({ ducks, onEdit, onDelete }) {
       <tbody>
         {ducks.map(duck => (
           <tr key={duck.id}>
+            <td style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{duck.id}</td>
             <td><ColorBadge color={duck.color} /></td>
             <td><SizeBadge size={duck.size} /></td>
             <td className="price-cell">{formatUSD(duck.price)}</td>
