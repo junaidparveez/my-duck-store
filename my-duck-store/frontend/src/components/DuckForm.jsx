@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap'
 
 const COLORS = ['Red', 'Green', 'Yellow', 'Black']
@@ -6,39 +6,37 @@ const SIZES  = ['XLarge', 'Large', 'Medium', 'Small', 'XSmall']
 
 const EMPTY_ADD = { color: 'Red', size: 'XLarge', price: '', quantity: '' }
 
+/** The form's starting values: the duck being edited, or a blank add form. */
+function initialFields(duck) {
+  if (!duck) return EMPTY_ADD
+  return {
+    color:    duck.color,
+    size:     duck.size,
+    price:    String(duck.price),
+    quantity: String(duck.quantity),
+  }
+}
+
 /**
  * Shared form used for both adding and editing a duck.
  *
  * When `duck` is non-null the form is in edit mode:
  *   • colour and size selects are disabled (read-only by design)
- *   • the PUT /api/ducks/{id} payload contains only price + quantity
+ *   • the PUT /api/v1/ducks/{id} payload contains only price + quantity
  *
  * When `duck` is null the form is in add mode and all four fields are active.
+ *
+ * The component is mounted only while the dialog is open and keyed on the duck being edited, so
+ * every field starts from `initialFields` on mount. That replaces an effect that used to copy
+ * `duck` into state on each change — one source of truth, and no render-then-correct pass.
  */
-export default function DuckForm({ show, onHide, onSubmit, duck }) {
+export default function DuckForm({ onHide, onSubmit, duck }) {
   const isEdit = duck !== null
 
-  const [fields, setFields]   = useState(EMPTY_ADD)
+  const [fields, setFields]   = useState(() => initialFields(duck))
   const [saving, setSaving]   = useState(false)
   const [apiError, setApiError] = useState(null)
   const [validated, setValidated] = useState(false)
-
-  // Sync fields whenever the target duck changes (opening edit vs add).
-  useEffect(() => {
-    if (duck) {
-      setFields({
-        color:    duck.color,
-        size:     duck.size,
-        price:    String(duck.price),
-        quantity: String(duck.quantity),
-      })
-    } else {
-      setFields(EMPTY_ADD)
-    }
-    setApiError(null)
-    setValidated(false)
-    setSaving(false)
-  }, [duck, show])
 
   function set(key, value) {
     setFields(prev => ({ ...prev, [key]: value }))
@@ -73,7 +71,7 @@ export default function DuckForm({ show, onHide, onSubmit, duck }) {
   }
 
   return (
-    <Modal show={show} onHide={onHide} centered backdrop="static" size="sm">
+    <Modal show onHide={onHide} centered backdrop="static" size="sm">
       <Modal.Header closeButton>
         <Modal.Title style={{ fontSize: '1rem', fontWeight: 700 }}>
           {isEdit ? '✏️ Edit Duck' : '🦆 Add Duck'}

@@ -32,17 +32,23 @@ export default function App() {
     setFormDuck(null)
   }
 
-  /** Called by DuckForm with the validated payload. */
+  /**
+   * Called by DuckForm with the validated payload.
+   *
+   * Deliberately does not close the modal and does not catch: the dialog owns its own lifecycle,
+   * closing itself on success and showing the message on failure. Closing in both places would
+   * mean two owners for one piece of state, and swallowing the rejection here would hide a
+   * failed save from the user.
+   */
   async function handleFormSubmit(data) {
     if (formDuck) {
       await updateDuck(formDuck.id, data)
     } else {
       await addDuck(data)
     }
-    closeForm()
   }
 
-  /** Called by DeleteDialog after the user confirms. */
+  /** Called by DeleteDialog after the user confirms. Rejections surface in the dialog. */
   async function handleDeleteConfirm() {
     await deleteDuck(deletingDuck.id)
     setDeletingDuck(null)
@@ -123,19 +129,27 @@ export default function App() {
         Duck Warehouse — My Duck Store
       </footer>
 
-      {/* ── Modals ────────────────────────────────────────────────────────── */}
-      <DuckForm
-        show={formOpen}
-        onHide={closeForm}
-        onSubmit={handleFormSubmit}
-        duck={formDuck}
-      />
+      {/* ── Modals ──────────────────────────────────────────────────────────
+          Each dialog is mounted only while it is open and keyed on what it is
+          editing, so its internal state (fields, errors, in-flight flag) starts
+          fresh every time it opens without an effect to reset it. */}
+      {formOpen && (
+        <DuckForm
+          key={formDuck ? `edit-${formDuck.id}` : 'add'}
+          onHide={closeForm}
+          onSubmit={handleFormSubmit}
+          duck={formDuck}
+        />
+      )}
 
-      <DeleteDialog
-        duck={deletingDuck}
-        onConfirm={handleDeleteConfirm}
-        onHide={() => setDeletingDuck(null)}
-      />
+      {deletingDuck && (
+        <DeleteDialog
+          key={deletingDuck.id}
+          duck={deletingDuck}
+          onConfirm={handleDeleteConfirm}
+          onHide={() => setDeletingDuck(null)}
+        />
+      )}
     </>
   )
 }

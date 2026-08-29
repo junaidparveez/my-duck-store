@@ -26,8 +26,10 @@ import java.util.List;
  * rounded to 2 decimal places individually; the total is the exact sum of those
  * rounded lines, so the breakdown always adds up to the total shown.
  *
- * <p>This is intentionally straight-line code (Phase 2). The pricing rules become
- * a list of small, independently testable rule objects in Phase 4.
+ * <p>The rules are applied in a fixed order, each contributing one breakdown line. Packaging and
+ * protection are resolved by exhaustive switch expressions over the {@code Size} and
+ * {@code ShippingMode} enums, so adding a size or a mode is a compile error until the new case is
+ * handled rather than a silent fall-through.
  */
 @Service
 @Transactional(readOnly = true)

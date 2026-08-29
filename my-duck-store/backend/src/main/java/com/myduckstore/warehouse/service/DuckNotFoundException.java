@@ -1,10 +1,12 @@
 package com.myduckstore.warehouse.service;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
-
-/** Thrown when a duck does not exist, or exists but has been logically deleted. */
-@ResponseStatus(HttpStatus.NOT_FOUND)
+/**
+ * Thrown when a duck does not exist, or exists but has been logically deleted.
+ *
+ * <p>Mapped to HTTP 404 by {@code GlobalExceptionHandler}. The mapping lives there and not in a
+ * {@code @ResponseStatus} annotation here, so the service layer carries no dependency on the
+ * web layer and every error response is built in one place.
+ */
 public class DuckNotFoundException extends RuntimeException {
 
     public DuckNotFoundException(Long id) {

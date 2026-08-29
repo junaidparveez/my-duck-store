@@ -32,7 +32,7 @@ public class Duck {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
+    @Column(nullable = false, length = 25)
     private Color color;
 
     @Enumerated(EnumType.STRING)

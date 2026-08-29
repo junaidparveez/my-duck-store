@@ -10,7 +10,9 @@ const BASE_URL = '/api/v1/ducks'
  */
 export function useDucks() {
   const [ducks, setDucks]     = useState([])
-  const [loading, setLoading] = useState(false)
+  // Starts true: the first fetch is already on its way when the UI first paints. Starting false
+  // would render the "No ducks in stock" empty state for one frame before the list arrives.
+  const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
@@ -28,6 +30,11 @@ export function useDucks() {
     }
   }, [])
 
+  // Load the list once on mount. react-hooks/set-state-in-effect flags this because fetchDucks
+  // sets state before its first await; that is the point of a load-on-mount effect, and the two
+  // synchronous calls (loading -> true, error -> null) already match the initial state, so React
+  // bails out rather than cascading a render.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchDucks() }, [fetchDucks])
 
   // ── Helpers ────────────────────────────────────────────────────────────────

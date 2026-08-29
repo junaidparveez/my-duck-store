@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,18 +53,30 @@ public class DuckController {
             @ApiResponse(responseCode = "400", description = "Validation failed")
     })
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public DuckResponse add(@Valid @RequestBody CreateDuckRequest request) {
-        return DuckResponse.from(
-                service.add(request.color(), request.size(), request.price(), request.quantity()));
+    public ResponseEntity<DuckResponse> add(@Valid @RequestBody CreateDuckRequest request) {
+        DuckService.AddOutcome outcome =
+                service.add(request.color(), request.size(), request.price(), request.quantity());
+
+        return ResponseEntity
+                .status(outcome.created() ? HttpStatus.CREATED : HttpStatus.OK)
+                .body(DuckResponse.from(outcome.duck()));
     }
 
     @Operation(summary = "Edit price and quantity",
-               description = "Updates only the price and quantity of an existing duck. Colour and size are immutable after creation.")
+               description = """
+                       Updates only the price and quantity of an existing duck. Colour and size are \
+                       immutable after creation.
+
+                       If the new price matches another active duck of the same colour and size, the two \
+                       are folded into a single record: this duck is logically deleted and its quantity is \
+                       added to the existing one, whose id is returned. That keeps the "one active duck per \
+                       colour + size + price" invariant true on the edit path as well as the add path.
+                       """)
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Duck updated"),
+            @ApiResponse(responseCode = "200", description = "Duck updated, or folded into an existing duck"),
             @ApiResponse(responseCode = "400", description = "Validation failed"),
-            @ApiResponse(responseCode = "404", description = "Duck not found or deleted")
+            @ApiResponse(responseCode = "404", description = "Duck not found or deleted"),
+            @ApiResponse(responseCode = "409", description = "A concurrent request changed the same duck - retry")
     })
     @PutMapping("/{id}")
     public DuckResponse update(@PathVariable Long id, @Valid @RequestBody UpdateDuckRequest request) {
