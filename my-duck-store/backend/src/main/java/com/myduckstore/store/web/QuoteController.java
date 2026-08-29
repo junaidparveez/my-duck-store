@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** HTTP entry point for the store. Maps requests; holds no business logic. */
 @Tag(name = "Store")
 @RestController
-@RequestMapping("/api/orders")
+@RequestMapping("${api.prefix}/orders")
 public class QuoteController {
 
     private final QuoteService service;

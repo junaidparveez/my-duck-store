@@ -25,7 +25,7 @@ import java.util.List;
 /** HTTP entry point for the warehouse. Maps requests and status codes; holds no business logic. */
 @Tag(name = "Warehouse")
 @RestController
-@RequestMapping("/api/ducks")
+@RequestMapping("${api.prefix}/ducks")
 public class DuckController {
 
     private final DuckService service;

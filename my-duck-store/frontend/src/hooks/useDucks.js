@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-const BASE_URL = '/api/ducks'
+const BASE_URL = '/api/v1/ducks'
 
 /**
  * Central data layer for the warehouse UI.

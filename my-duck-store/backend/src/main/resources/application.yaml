@@ -1,3 +1,9 @@
+# ── API versioning ───────────────────────────────────────────────────────────
+# Change this one property to rename every versioned route simultaneously.
+# Controllers reference it as: @RequestMapping("${api.prefix}/...")
+api:
+  prefix: /api/v1
+
 spring:
   application:
     name: my-duck-store
@@ -36,3 +42,14 @@ server:
 logging:
   level:
     org.hibernate.SQL: info
+
+# ── Swagger / OpenAPI ────────────────────────────────────────────────────────
+# Swagger UI:   http://localhost:8080/swagger-ui.html
+# OpenAPI JSON: http://localhost:8080/v3/api-docs
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
