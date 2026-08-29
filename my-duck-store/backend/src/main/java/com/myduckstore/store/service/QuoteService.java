@@ -8,6 +8,8 @@ import com.myduckstore.store.web.dto.QuoteResponse;
 import com.myduckstore.warehouse.domain.Color;
 import com.myduckstore.warehouse.domain.Size;
 import com.myduckstore.warehouse.repository.DuckRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +48,8 @@ public class QuoteService {
     private static final BigDecimal AIR_PER_UNIT          = new BigDecimal("30");
     private static final BigDecimal AIR_HIGH_VOL_DISCOUNT = new BigDecimal("0.85"); // keep 85% → reduce by 15%
 
+    private static final Logger log = LoggerFactory.getLogger(QuoteService.class);
+
     private final DuckRepository repository;
 
     public QuoteService(DuckRepository repository) {
@@ -54,12 +58,24 @@ public class QuoteService {
 
     public QuoteResponse quote(Color color, Size size, int quantity, String country, ShippingMode shippingMode) {
 
+        log.info("quote: color={}, size={}, quantity={}, country={}, shippingMode={}",
+                color.getLabel(), size.getLabel(), quantity, country, shippingMode.getLabel());
+
         // Resolve price — lowest active price for this colour + size (decision #3 in the plan).
         BigDecimal unitPrice = repository.findLowestActivePriceByColorAndSize(color, size)
-                .orElseThrow(() -> new NoStockException(color, size));
+                .orElseThrow(() -> {
+                    log.warn("quote: no active stock for color={}, size={}",
+                            color.getLabel(), size.getLabel());
+                    return new NoStockException(color, size);
+                });
+
+        log.debug("quote: resolved unit price={} for color={}, size={}",
+                unitPrice, color.getLabel(), size.getLabel());
 
         PackageType packageType = resolvePackage(size);
         List<ProtectionMaterial> protections = resolveProtections(packageType, shippingMode);
+
+        log.debug("quote: packageType={}, protections={}", packageType.getLabel(), protections);
 
         List<BreakdownLine> breakdown = new ArrayList<>();
 
@@ -117,6 +133,9 @@ public class QuoteService {
         BigDecimal total = breakdown.stream()
                 .map(BreakdownLine::amount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        log.info("quote: total={} (breakdown: {} lines) for color={}, size={}, quantity={}",
+                total, breakdown.size(), color.getLabel(), size.getLabel(), quantity);
 
         return new QuoteResponse(packageType, protections, total, breakdown);
     }
