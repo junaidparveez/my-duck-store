@@ -16,7 +16,7 @@ The store is deliberately API-only, as the exercise specifies.
 | Layer    | Technology                                                            |
 | -------- | --------------------------------------------------------------------- |
 | Backend  | Java 21, Spring Boot 4.1.1, Spring Data JPA, Bean Validation, Flyway  |
-| Database | PostgreSQL 16 (via Docker Compose)                                    |
+| Database | PostgreSQL 16 (via Docker Compose, or your own install — see setup)   |
 | Frontend | React 19, Vite, react-bootstrap 2                                     |
 | Testing  | JUnit 5, AssertJ, Mockito, MockMvc, Testcontainers                    |
 
@@ -25,7 +25,9 @@ The store is deliberately API-only, as the exercise specifies.
 ## Prerequisites
 
 - **Java 21+**
-- **Docker** (for the database, and for the Testcontainers-based tests)
+- **Docker** — runs the database, and is required by the Testcontainers-based tests.
+  To run the app against a PostgreSQL you have already installed instead, see
+  [Running against a locally installed PostgreSQL](#running-against-a-locally-installed-postgresql-without-docker).
 - **Node.js 20+**
 
 ---
@@ -69,6 +71,49 @@ any other database:
 | `DB_PASSWORD` | `duckstore`                                  |
 
 No credentials are committed beyond these local-only development defaults.
+
+### Running against a locally installed PostgreSQL (without Docker)
+
+Docker is the fast path, not the only one. If you already have **PostgreSQL 16 or newer** running,
+skip `docker compose up -d`, do the following once, then start the backend and frontend exactly as
+in the Quickstart.
+
+**1. Create the role and database.** As a superuser (`psql -U postgres` — on Windows the
+PostgreSQL `bin` directory may need to be on your `PATH` first):
+
+```sql
+CREATE USER duckstore WITH PASSWORD 'duckstore';
+CREATE DATABASE duckstore OWNER duckstore;
+```
+
+**2. Point the backend at it.** A local install listens on **5432**, whereas Compose maps the
+container to 5433 — so the URL has to be overridden:
+
+```bash
+# macOS / Linux
+export DB_URL=jdbc:postgresql://localhost:5432/duckstore
+```
+
+```powershell
+# Windows PowerShell
+$env:DB_URL = "jdbc:postgresql://localhost:5432/duckstore"
+```
+
+Keep `DB_USERNAME` / `DB_PASSWORD` at their defaults if you used the credentials above; override
+them too if you chose different ones, or if you prefer to point at an existing role.
+
+**3. Start the backend as usual** (`./mvnw spring-boot:run`). Flyway creates the schema on first
+boot — there is no manual DDL and no seed script to run.
+
+Two caveats on this path:
+
+- **PostgreSQL only.** The merge rule is enforced by `INSERT … ON CONFLICT … DO UPDATE` over a
+  partial unique index — see
+  [design decision 1](#1-the-merge-rule-is-enforced-by-the-database-not-by-service-code). That is
+  PostgreSQL syntax; MySQL or an in-memory database will fail at the Flyway migration.
+- **Docker is still needed for `./mvnw test`.** The integration tests start their own throwaway
+  PostgreSQL container through Testcontainers and ignore `DB_URL` entirely, so skipping Compose
+  changes how you *run* the app, not how you *test* it.
 
 ---
 
@@ -322,6 +367,32 @@ report `201`; the stored quantity is exact regardless, and only the status label
 
 `api.prefix` drives every route (`@RequestMapping("${api.prefix}/ducks")`), so bumping v1 to v2 is
 a one-line change and Swagger UI keeps its root paths.
+
+### 11. The database runs in Docker, not as a locally installed server
+
+The exercise never asks for Docker — it suggests MongoDB or MySQL and leaves the stack open. Both
+PostgreSQL and Compose are therefore deliberate choices, made against the one constraint the
+handout does set: *"we run your submission — from your README, against a live database"*, on a
+clean machine.
+
+- **One command instead of a setup ritual.** `docker compose up -d` yields PostgreSQL 16 with the
+  database, role and password that `application.yaml` already expects. A native install is
+  multi-step and OS-specific — installer, superuser password, `createdb`, `createuser`, grants —
+  and every one of those steps is a place a review run fails for a reason unrelated to the code.
+- **A pinned engine.** `postgres:16-alpine` guarantees the reviewer runs the engine this was
+  written against. That matters here specifically: the merge invariant is enforced by
+  `ON CONFLICT DO UPDATE` over a partial unique index (decision 1), which is PostgreSQL behaviour
+  rather than portable SQL, so an older or different engine would not exercise the same guarantee.
+- **Docker is already a prerequisite.** `DuckMergeIntegrationTest` starts a real PostgreSQL through
+  Testcontainers, so `./mvnw test` needs Docker regardless. Using it for the development database
+  too adds nothing to the setup burden.
+- **Isolation and clean removal.** A named volume, host port 5433 so an existing local PostgreSQL
+  on 5432 is left untouched, and `docker compose down -v` to remove every trace afterwards.
+
+The cost is one more prerequisite — and on Windows a non-trivial one. That is precisely why the
+datasource is environment-driven rather than hardcoded: `DB_URL`, `DB_USERNAME` and `DB_PASSWORD`
+point the backend at any PostgreSQL already on the machine. Steps for that path are under
+[Running against a locally installed PostgreSQL](#running-against-a-locally-installed-postgresql-without-docker).
 
 ---
 
