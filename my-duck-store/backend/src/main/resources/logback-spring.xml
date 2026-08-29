@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logback configuration for My Duck Store.
+
+  Spring Boot loads this file automatically (the -spring suffix gives Spring
+  control of the lifecycle, enabling <springProfile> blocks).
+
+  Appenders:
+    Console     — coloured, human-readable output for the terminal
+    RollingFile — plain text, written to logs/duck-store.log,
+                  rolls daily and at 10 MB, keeps 30 days of history
+
+  Package levels:
+    com.myduckstore  DEBUG  — every service call is visible
+    org.hibernate.SQL        DEBUG  — the actual SQL sent to the DB
+    org.springframework.web  INFO   — request-mapping noise suppressed
+    root                     INFO   — everything else
+-->
+<configuration>
+
+    <!-- Inherit Spring Boot's default color patterns for the console. -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- ── Appenders ──────────────────────────────────────────────────────── -->
+
+    <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- CONSOLE_LOG_PATTERN comes from defaults.xml — it includes ANSI colors. -->
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!--
+      Rolling file appender.
+      • Active log  →  logs/duck-store.log
+      • Archived    →  logs/duck-store-YYYY-MM-DD.N.log.gz
+      • Rolls on:   daily OR when the file exceeds 10 MB
+      • Retention:  30 days / 500 MB total cap
+    -->
+    <appender name="RollingFile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/duck-store.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} : %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/duck-store-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ── Package-level overrides ────────────────────────────────────────── -->
+
+    <!-- Application code: DEBUG so every service/repo interaction is visible. -->
+    <logger name="com.myduckstore" level="DEBUG"/>
+
+    <!-- Show the actual SQL Hibernate sends to the database. -->
+    <logger name="org.hibernate.SQL" level="DEBUG"/>
+
+    <!-- Spring MVC request-mapping noise at INFO is enough. -->
+    <logger name="org.springframework.web" level="INFO"/>
+
+    <!-- Flyway migration progress. -->
+    <logger name="org.flywaydb" level="INFO"/>
+
+    <!-- Springdoc boot messages are INFO-chatty; keep them quiet. -->
+    <logger name="org.springdoc" level="WARN"/>
+
+    <!-- ── Root ───────────────────────────────────────────────────────────── -->
+    <root level="INFO">
+        <appender-ref ref="Console"/>
+        <appender-ref ref="RollingFile"/>
+    </root>
+
+</configuration>
