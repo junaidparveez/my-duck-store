@@ -14,10 +14,6 @@ import java.util.List;
 
 /**
  * Warehouse operations.
- *
- * <p>Known limitation, addressed in a later step: {@link #add} reads and then writes, so two
- * simultaneous requests for the same duck can lose an increment or collide on the unique index.
- * The concurrency test comes first, the fix after it.
  */
 @Service
 @Transactional
@@ -38,24 +34,15 @@ public class DuckService {
         return ducks;
     }
 
-    /** Same colour, size and price as an existing duck means adding quantities, not creating a duplicate. */
+    /** Same colour, size and price as an existing duck means adding quantities atomically. */
     public Duck add(Color color, Size size, BigDecimal price, int quantity) {
-        log.info("add: color={}, size={}, price={}, quantity={}",
+        log.info("add: upserting color={}, size={}, price={}, quantity={}",
                 color.getLabel(), size.getLabel(), price, quantity);
 
+        repository.upsert(color, size, price, quantity);
+
         return repository.findByColorAndSizeAndPriceAndDeletedFalse(color, size, price)
-                .map(existing -> {
-                    int newQty = existing.getQuantity() + quantity;
-                    log.info("add: merged into existing duck id={} — quantity {} → {}",
-                            existing.getId(), existing.getQuantity(), newQty);
-                    existing.setQuantity(newQty);
-                    return existing;
-                })
-                .orElseGet(() -> {
-                    Duck saved = repository.save(new Duck(color, size, price, quantity));
-                    log.info("add: created new duck id={}", saved.getId());
-                    return saved;
-                });
+                .orElseThrow(() -> new IllegalStateException("Duck should exist immediately after upsert"));
     }
 
     /** Only price and quantity are editable; colour and size are fixed for the life of the record. */

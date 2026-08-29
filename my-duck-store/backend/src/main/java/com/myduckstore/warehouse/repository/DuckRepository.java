@@ -4,6 +4,7 @@ import com.myduckstore.warehouse.domain.Color;
 import com.myduckstore.warehouse.domain.Duck;
 import com.myduckstore.warehouse.domain.Size;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -33,4 +34,21 @@ public interface DuckRepository extends JpaRepository<Duck, Long> {
      */
     @Query("SELECT MIN(d.price) FROM Duck d WHERE d.color = :color AND d.size = :size AND d.deleted = false")
     Optional<BigDecimal> findLowestActivePriceByColorAndSize(@Param("color") Color color, @Param("size") Size size);
+
+    /**
+     * Atomically adds a duck or merges its quantity if the exact duck (color, size, price)
+     * already exists. This delegates the concurrency control to the database's unique index
+     * instead of relying on a racy check-then-insert at the application level.
+     */
+    @Modifying
+    @Query(value = """
+        INSERT INTO duck (color, size, price, quantity, deleted)
+        VALUES (:#{#color.name()}, :#{#size.name()}, :price, :quantity, false)
+        ON CONFLICT (color, size, price) WHERE deleted = false
+        DO UPDATE SET quantity = duck.quantity + EXCLUDED.quantity
+        """, nativeQuery = true)
+    void upsert(@Param("color") Color color,
+                @Param("size") Size size,
+                @Param("price") BigDecimal price,
+                @Param("quantity") int quantity);
 }

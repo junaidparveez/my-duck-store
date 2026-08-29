@@ -36,6 +36,7 @@ docker compose up -d
 # 2. Start the backend  (http://localhost:8080)
 cd backend
 ./mvnw spring-boot:run
+# Swagger UI documentation is available at: http://localhost:8080/swagger-ui.html
 
 # 3. Start the frontend (http://localhost:5173)
 cd frontend
@@ -52,21 +53,21 @@ configuration is required on the backend during development.
 
 | Method   | Endpoint          | Description                                                      |
 | -------- | ----------------- | ---------------------------------------------------------------- |
-| `GET`    | `/api/ducks`      | All active ducks, sorted by quantity ascending                   |
-| `POST`   | `/api/ducks`      | Add duck — merges quantities if same color + size + price exists |
-| `PUT`    | `/api/ducks/{id}` | Update price and quantity only                                   |
-| `DELETE` | `/api/ducks/{id}` | Logical delete (row stays in DB with `deleted = true`)           |
+| `GET`    | `/api/v1/ducks`      | All active ducks, sorted by quantity ascending                   |
+| `POST`   | `/api/v1/ducks`      | Add duck — merges quantities if same color + size + price exists |
+| `PUT`    | `/api/v1/ducks/{id}` | Update price and quantity only                                   |
+| `DELETE` | `/api/v1/ducks/{id}` | Logical delete (row stays in DB with `deleted = true`)           |
 
 ### List all ducks
 
 ```bash
-curl http://localhost:8080/api/ducks
+curl http://localhost:8080/api/v1/ducks
 ```
 
 ### Add a duck
 
 ```bash
-curl -X POST http://localhost:8080/api/ducks \
+curl -X POST http://localhost:8080/api/v1/ducks \
   -H 'Content-Type: application/json' \
   -d '{"color":"Red","size":"Medium","price":10.00,"quantity":50}'
 ```
@@ -78,7 +79,7 @@ on a new record.
 ### Edit a duck (price + quantity only)
 
 ```bash
-curl -X PUT http://localhost:8080/api/ducks/1 \
+curl -X PUT http://localhost:8080/api/v1/ducks/1 \
   -H 'Content-Type: application/json' \
   -d '{"price":12.50,"quantity":75}'
 ```
@@ -89,7 +90,7 @@ Color and size are read-only after creation — enforced by the shape of the
 ### Delete a duck
 
 ```bash
-curl -X DELETE http://localhost:8080/api/ducks/1
+curl -X DELETE http://localhost:8080/api/v1/ducks/1
 ```
 
 The row is never physically removed. It disappears from the listing
@@ -101,12 +102,12 @@ The row is never physically removed. It disappears from the listing
 
 | Method | Endpoint            | Description                                    |
 | ------ | ------------------- | ---------------------------------------------- |
-| `POST` | `/api/orders/quote` | Price a potential order — no stock is consumed |
+| `POST` | `/api/v1/orders/quote` | Price a potential order — no stock is consumed |
 
 ### Get a price quote
 
 ```bash
-curl -X POST http://localhost:8080/api/orders/quote \
+curl -X POST http://localhost:8080/api/v1/orders/quote \
   -H 'Content-Type: application/json' \
   -d '{
     "color":        "Red",
@@ -185,3 +186,5 @@ The `total` is the exact sum of those rounded lines.
 | 7   | Listing sorted **quantity ascending**, `id` as tie-break            | Surfaces low stock first — the useful view for a warehouse                                                    |
 | 8   | Country is a **String**, not an enum                                | "Any other destination → 15%" requires an open set                                                            |
 | 9   | `201 Created` on insert, `200 OK` on merge                          | Lets the client distinguish which path was taken                                                              |
+| 10  | API versioning via `application.yaml` (`api.prefix`)                | Preserves root paths for Swagger UI while isolating API routes                                                |
+| 11  | Testcontainers Integration Tests                                    | `DuckMergeIntegrationTest` spins up an ephemeral PostgreSQL instance to verify concurrent Upserts             |
