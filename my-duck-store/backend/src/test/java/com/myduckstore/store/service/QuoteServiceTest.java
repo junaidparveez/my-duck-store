@@ -1,6 +1,8 @@
 package com.myduckstore.store.service;
 
 import com.myduckstore.store.domain.ShippingMode;
+import com.myduckstore.store.service.packaging.PackagingPolicy;
+import com.myduckstore.store.service.pricing.PricingEngine;
 import com.myduckstore.warehouse.domain.Color;
 import com.myduckstore.warehouse.domain.Size;
 import com.myduckstore.warehouse.repository.DuckRepository;
@@ -41,7 +43,7 @@ class QuoteServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new QuoteService(repository);
+        service = new QuoteService(repository, new PackagingPolicy(), new PricingEngine());
     }
 
     @Test

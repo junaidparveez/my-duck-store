@@ -76,7 +76,7 @@ No credentials are committed beyond these local-only development defaults.
 
 ```bash
 cd my-duck-store/backend
-./mvnw test          # 100 tests
+./mvnw test          # 103 tests
 
 cd ../frontend
 npm run lint
@@ -97,6 +97,7 @@ database would prove nothing.
 | `DuckWarehouseIntegrationTest` | Listing order, logical deletion vs. the unique index, price resolution|
 | `DuckMergeIntegrationTest`     | The merge invariant under genuinely concurrent writes                 |
 | `QuoteServiceTest`             | Price resolution, and that quoting never writes                       |
+| `PricingEngineTest`            | Rule order, omitted rules, and that the engine rounds once            |
 
 Expected monetary values in `PricingCalculationTest` were computed by hand from the exercise rules,
 not captured from a run, so they remain a valid oracle if the pricing internals are refactored.
@@ -300,7 +301,9 @@ is the useful view for a warehouse. The id tie-break makes the order stable acro
 
 ### 8. `country` is a string, not an enum
 
-"Any other destination → 15%" requires an open set.
+"Any other destination → 15%" requires an open set. Matching is trimmed and upper-cased under
+`Locale.ROOT` rather than the default locale, so a server running in a Turkish locale still matches
+`India` — a locale-sensitive upper-case turns `i` into a dotted capital there.
 
 ### 9. `201 Created` on insert, `200 OK` on merge
 
@@ -385,6 +388,8 @@ my-duck-store/
 │       └── store/
 │           ├── domain/      PackageType, ProtectionMaterial, ShippingMode
 │           ├── service/     QuoteService, NoStockException
+│           │   ├── packaging/  PackagingPolicy
+│           │   └── pricing/    PricingRule + 5 rules, PricingEngine, PricingContext
 │           └── web/         QuoteController + dto/
 └── frontend/src/
     ├── components/  DuckTable, DuckForm, DeleteDialog
@@ -405,6 +410,9 @@ merge rule depends on.
   edit rather than merely rejected.
 - **Static factory + `@JsonValue`/`@JsonCreator` on enums** — parsing, case-insensitive matching and
   the human-readable label live with the type, so validity is decided in one place.
+- **Strategy** for pricing (§3c) — each family of pricing rules is one `PricingRule`
+  implementation; `PricingEngine` applies them in a declared order and owns the rounding. Detailed
+  below.
 - **Exhaustive switch expressions** over `Size` and `ShippingMode` for packaging and protection —
   adding a size or mode becomes a compile error until every branch is handled, instead of a silent
   fall-through.
@@ -413,10 +421,67 @@ merge rule depends on.
 - **Custom shared hook (`useDucks`)** — one place in the frontend that talks to the API; the table,
   form and delete dialog are presentational and share it rather than duplicating fetch logic.
 
-> The pricing rules in `QuoteService` are currently applied as ordered, straight-line steps. A
-> follow-up refactor will extract them into individual rule objects behind a common interface; the
-> cent-exact tests in `PricingCalculationTest` were written against hand-computed expectations
-> precisely so that refactor can be verified to change no behaviour.
+### The Strategy pattern in the store module
+
+The exercise asks for packaging (§3b) and pricing (§3c) to be implemented "using one or more design
+patterns". They got different answers, deliberately.
+
+**Pricing is Strategy.** The twelve rules in §3c all apply, in order, and each contributes one line
+to the itemized breakdown §3d requires. That is exactly Strategy's shape — one interface, many
+interchangeable implementations, all of them applied:
+
+```java
+public interface PricingRule {
+    Optional<BreakdownLine> apply(PricingContext context);   // empty = this rule does not apply
+}
+```
+
+`PricingEngine` holds the ordered list and is the only thing that rounds:
+
+| Rule class | §3c rules |
+| --- | --- |
+| `BaseCostRule` | 1 — quantity × unit price |
+| `BulkDiscountRule` | 2 — more than 100 units, −20% |
+| `PackagingAdjustmentRule` | 3–5 — wood +5%, plastic +10%, cardboard −1% |
+| `DestinationSurchargeRule` | 6–9 — a lookup table with an open-ended default |
+| `ShippingChargeRule` | 10–12 — sea flat, land and air per-unit, air taper above 1,000 |
+
+Five classes, not twelve, because the twelve numbered items collapse into five *families* — and the
+family is the real axis of change. A new country is a new map entry inside
+`DestinationSurchargeRule`; a genuinely new *kind* of charge is a new class plus one line in the
+engine. Splitting USA / Bolivia / India into three classes would be turning a lookup table into a
+hierarchy for no gain.
+
+Three properties fall out of the structure rather than being maintained by hand:
+
+- **The breakdown is the design.** One rule contributes one line, so the itemisation cannot drift
+  out of step with what was actually charged.
+- **Percentages cannot accidentally compound.** `PricingContext` carries the base subtotal and no
+  running total, so a rule is physically unable to price off another rule's output.
+- **Money is rounded in one place.** Rules return unrounded amounts; `PricingEngine` rounds each
+  line to cents and the total is their exact sum, so "the breakdown adds up to the total" holds by
+  construction.
+
+**Packaging is not Strategy, on purpose.** `PackagingPolicy` keeps its exhaustive `switch`
+expressions. The mapping is total and closed — five sizes × three shipping modes, all fifteen cases
+fixed by the spec — and an exhaustive switch already delivers the guarantee a class hierarchy would:
+adding a `Size` is a *compile error* until every branch is handled. A class per case would be
+indirection with nothing behind it. What was genuinely wrong was location, not shape, so the rules
+moved out of the pricing service into their own collaborator.
+
+**Decorator was considered and rejected.** "A package, then wrapped in protective materials" is the
+textbook Decorator example, so it deserves an explicit answer: the §3d response is a *list of
+material labels*, not an object whose behaviour composes. There is no polymorphic call for a
+decorator to wrap, so a decorator chain would add indirection and change nothing about the output.
+
+**Chain of Responsibility would have been the wrong name.** A chain stops at the first handler that
+claims the request; here every applicable rule must contribute.
+
+The refactor was verified rather than assumed: the cent-exact expectations in
+`PricingCalculationTest` were hand-computed from the PDF *before* it, and the whole suite passes
+with the three existing store test classes changed only where the constructor gained its two new
+collaborators — not one expected value edited. `PricingEngineTest` is new, and covers only what the
+refactor introduced: rule order, omitted rules, and rounding.
 
 ---
 

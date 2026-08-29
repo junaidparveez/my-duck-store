@@ -3,6 +3,8 @@ package com.myduckstore.store.service;
 import com.myduckstore.store.domain.PackageType;
 import com.myduckstore.store.domain.ProtectionMaterial;
 import com.myduckstore.store.domain.ShippingMode;
+import com.myduckstore.store.service.packaging.PackagingPolicy;
+import com.myduckstore.store.service.pricing.PricingEngine;
 import com.myduckstore.store.web.dto.QuoteResponse;
 import com.myduckstore.warehouse.domain.Color;
 import com.myduckstore.warehouse.domain.Size;
@@ -33,7 +35,8 @@ class PackagingTest {
         Mockito.when(repository.findLowestActivePriceByColorAndSize(Color.RED, size))
                 .thenReturn(Optional.of(new BigDecimal("10.00")));
 
-        return new QuoteService(repository).quote(Color.RED, size, 1, "USA", mode);
+        return new QuoteService(repository, new PackagingPolicy(), new PricingEngine())
+                .quote(Color.RED, size, 1, "USA", mode);
     }
 
     @ParameterizedTest(name = "{0} -> {1} package")

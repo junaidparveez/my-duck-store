@@ -1,6 +1,8 @@
 package com.myduckstore.store.service;
 
 import com.myduckstore.store.domain.ShippingMode;
+import com.myduckstore.store.service.packaging.PackagingPolicy;
+import com.myduckstore.store.service.pricing.PricingEngine;
 import com.myduckstore.store.web.dto.BreakdownLine;
 import com.myduckstore.store.web.dto.QuoteResponse;
 import com.myduckstore.warehouse.domain.Color;
@@ -45,7 +47,8 @@ class PricingCalculationTest {
         Mockito.when(repository.findLowestActivePriceByColorAndSize(Color.RED, size))
                 .thenReturn(Optional.of(new BigDecimal(unitPrice)));
 
-        return new QuoteService(repository).quote(Color.RED, size, quantity, country, mode);
+        return new QuoteService(repository, new PackagingPolicy(), new PricingEngine())
+                .quote(Color.RED, size, quantity, country, mode);
     }
 
     @Nested
