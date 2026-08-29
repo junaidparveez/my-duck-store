@@ -256,6 +256,14 @@ been deleted.
 scenario: 100 units in stock, then adds of 50 and 30 arriving simultaneously, giving **180** —
 never 150 or 130.
 
+**The trade-off is portability.** `ON CONFLICT … DO UPDATE` is PostgreSQL syntax — MySQL spells it
+`ON DUPLICATE KEY UPDATE`, and the SQL standard has `MERGE`. This project pins PostgreSQL, so the
+choice is deliberate: correctness in one database over a race condition in several. The portable
+alternative is an `@Version` column plus a retry loop — catch the constraint violation when the
+insert race is lost, retry as an increment — but that turns one round-trip into three, and it
+**still** requires the partial unique index to detect the race at all. It would be machinery layered
+on top of the mechanism already doing the work.
+
 ### 2. Editing a price into an existing price point **folds** the two records
 
 The invariant is "at most one active duck per colour + size + price". Editing "Red / XLarge / $22"
